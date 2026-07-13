@@ -1,0 +1,97 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --background: 222 47% 6%;
+    --foreground: 213 31% 91%;
+
+    --card: 222 47% 9%;
+    --card-foreground: 213 31% 91%;
+
+    --popover: 222 47% 9%;
+    --popover-foreground: 213 31% 91%;
+
+    --primary: 43 96% 56%;
+    --primary-foreground: 222 47% 6%;
+
+    --secondary: 222 47% 14%;
+    --secondary-foreground: 213 31% 91%;
+
+    --muted: 222 47% 12%;
+    --muted-foreground: 215 16% 57%;
+
+    --accent: 43 96% 56%;
+    --accent-foreground: 222 47% 6%;
+
+    --destructive: 0 63% 51%;
+    --destructive-foreground: 213 31% 91%;
+
+    --border: 222 47% 16%;
+    --input: 222 47% 14%;
+    --ring: 43 96% 56%;
+
+    --radius: 0.625rem;
+
+    /* Custom colors */
+    --success: 158 64% 52%;
+    --success-foreground: 222 47% 6%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 222 47% 6%;
+    --info: 217 91% 60%;
+    --info-foreground: 222 47% 6%;
+  }
+}
+
+@layer base {
+  * {
+    border-color: hsl(var(--border));
+    box-sizing: border-box;
+  }
+
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-feature-settings: "rlig" 1, "calt" 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: hsl(var(--background));
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground));
+  }
+}
+
+/* ─── Animações ─── */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 hsla(43, 96%, 56%, 0.3); }
+  50%       { box-shadow: 0 0 0 8px hsla(43, 96%, 56%, 0); }
+}
+
+.animate-fade-in       { animation: fadeIn 0.35s ease both; }
+.animate-slide-in-left { animation: slideInLeft 0.3s ease both; }
+.animate-pulse-glow    { animation: pulse-glow 2s infinite; }
+
+/* ─── Utilitários de moeda ─── */
+.text-entrada { color: #34d399; } /* emerald-400 */
+.text-saida   { color: #f87171; } /* rose-400    */
+.text-neutro  { color: #94a3b8; } /* slate-400   */

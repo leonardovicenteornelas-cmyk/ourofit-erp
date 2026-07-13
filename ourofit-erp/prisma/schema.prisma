@@ -1,0 +1,78 @@
+// Prisma Schema — ERP Academia Ourofit
+// Fase 1 MVP: Financeiro Core (Simplicidade máxima)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─────────────────────────────────────────────
+// CATEGORIAS (Plano de Contas simplificado)
+// ─────────────────────────────────────────────
+
+model Categoria {
+  id        String         @id @default(cuid())
+  nome      String         @unique // ex: "Mensalidades", "Salários"
+  tipo      TipoLancamento // ENTRADA ou SAIDA
+  icone     String         @default("tag") // ícone lucide (para o dropdown)
+  ativo     Boolean        @default(true)
+  ordem     Int            @default(0) // para ordenar o dropdown
+  createdAt DateTime       @default(now())
+
+  lancamentos Lancamento[]
+
+  @@map("categorias")
+}
+
+// ─────────────────────────────────────────────
+// LANÇAMENTOS FINANCEIROS (Core da Fase 1)
+// ─────────────────────────────────────────────
+
+model Lancamento {
+  id          String         @id @default(cuid())
+  tipo        TipoLancamento // ENTRADA ou SAIDA
+
+  // Relacionamento
+  categoriaId String
+  categoria   Categoria      @relation(fields: [categoriaId], references: [id])
+
+  // Dados essenciais
+  descricao   String?        // campo opcional
+  valor       Decimal        @db.Decimal(12, 2)
+  data        DateTime       // data do pagamento/recebimento
+
+  // Campos opcionais (acessíveis via "Mais detalhes")
+  fornecedor  String?        // nome livre: aluno, fornecedor, parceiro
+  conta       String?        // "Stone", "Bradesco PJ", "Caixa Físico", etc.
+  observacao  String?
+
+  // Status simples
+  status      StatusPagamento @default(PAGO)
+
+  // Metadados
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([data])
+  @@index([tipo])
+  @@index([categoriaId])
+  @@map("lancamentos")
+}
+
+// ─────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────
+
+enum TipoLancamento {
+  ENTRADA
+  SAIDA
+}
+
+enum StatusPagamento {
+  PAGO
+  EM_ABERTO
+  AGENDADO
+}
