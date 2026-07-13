@@ -12,8 +12,7 @@ import {
 } from "lucide-react";
 import { KpiCard } from "@/components/financeiro/KpiCard";
 import { GraficoEvolucao } from "@/components/financeiro/GraficoEvolucao";
-import { formatCurrency, formatDate, MESES_COMPLETOS } from "@/lib/utils";
-import { cn } from "@/lib/utils";
+import { formatCurrency, formatDate, cn } from "@/lib/utils";
 
 interface KPI {
   receitaMes: number;
@@ -43,26 +42,48 @@ interface GraficoDado {
   resultado: number;
 }
 
+interface DREData {
+  entradas: { [nome: string]: number };
+  saidas: { [nome: string]: number };
+  totalEntradas: number;
+  totalSaidas: number;
+}
+
 interface ResumoData {
   kpis: KPI;
   grafico: GraficoDado[];
   ultimosLancamentos: Lancamento[];
+  dre: DREData;
 }
 
+const MESES = [
+  { value: "2026-06", label: "Junho / 2026" },
+  { value: "2026-05", label: "Maio / 2026" },
+  { value: "2026-04", label: "Abril / 2026" },
+  { value: "2026-02", label: "Fevereiro / 2026" },
+  { value: "2026-01", label: "Janeiro / 2026" },
+  { value: "2025-10", label: "Outubro / 2025" },
+  { value: "2025-09", label: "Setembro / 2025" },
+  { value: "2025-08", label: "Agosto / 2025" },
+  { value: "2025-07", label: "Julho / 2025" },
+  { value: "2025-06", label: "Junho / 2025" },
+  { value: "2025-05", label: "Maio / 2025" },
+  { value: "2025-04", label: "Abril / 2025" },
+];
+
 export default function DashboardPage() {
+  const [mesRef, setMesRef] = useState("2026-06");
   const [data, setData] = useState<ResumoData | null>(null);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState("");
 
-  const mesAtual = MESES_COMPLETOS[new Date().getMonth()];
-  const anoAtual = new Date().getFullYear();
+  const labelMesSelecionado = MESES.find((m) => m.value === mesRef)?.label || mesRef;
 
   useEffect(() => {
     async function carregarResumo() {
       try {
         setLoading(true);
-        // Usando o mês de Setembro de 2025 por padrão para exibir o histórico real importado
-        const res = await fetch("/api/resumo?mes=2025-09");
+        const res = await fetch(`/api/resumo?mes=${mesRef}`);
         if (!res.ok) throw new Error("Falha ao buscar dados");
         const json = await res.json();
         setData(json);
@@ -74,13 +95,13 @@ export default function DashboardPage() {
       }
     }
     carregarResumo();
-  }, []);
+  }, [mesRef]);
 
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] gap-3 text-white/50">
         <Loader2 className="w-8 h-8 animate-spin text-amber-500" />
-        <p className="text-sm font-medium">Carregando resumo do ERP...</p>
+        <p className="text-sm font-medium">Carregando dados do ERP...</p>
       </div>
     );
   }
@@ -94,21 +115,31 @@ export default function DashboardPage() {
     );
   }
 
-  const { kpis, grafico, ultimosLancamentos } = data;
+  const { kpis, grafico, ultimosLancamentos, dre } = data;
 
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">Visão Geral</h1>
+          <h1 className="text-2xl font-bold text-white tracking-tight">Painel de Controle</h1>
           <p className="text-sm text-white/40 mt-0.5 font-medium">
-            {mesAtual} de {anoAtual} · Academia Ourofit
+            Período: {labelMesSelecionado} · Academia Ourofit
           </p>
         </div>
-        <div className="flex items-center gap-2 text-xs font-semibold text-white/40 bg-white/5 border border-white/5 rounded-lg px-3 py-2">
-          <Calendar className="w-3.5 h-3.5" />
-          <span>Dados em Tempo Real (Supabase)</span>
+        <div className="flex items-center gap-2">
+          <Calendar className="w-4 h-4 text-white/20" />
+          <select
+            value={mesRef}
+            onChange={(e) => setMesRef(e.target.value)}
+            className="px-3 py-2 text-sm text-white bg-[hsl(222,47%,9%)] border border-white/5 rounded-xl hover:border-white/10 focus:outline-none cursor-pointer font-semibold transition-colors"
+          >
+            {MESES.map((m) => (
+              <option key={m.value} value={m.value} className="bg-[hsl(222,47%,9%)]">
+                {m.label}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
@@ -153,18 +184,64 @@ export default function DashboardPage() {
         />
       </div>
 
+      {/* DADOS DETALHADOS (Similares à Planilha) */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+        {/* Entradas */}
+        <div className="rounded-xl border border-white/5 bg-[hsl(222,47%,9%)] p-5">
+          <h3 className="text-sm font-semibold text-emerald-400 mb-4 flex items-center justify-between">
+            <span>Demonstrativo de Receitas</span>
+            <span className="text-xs text-white/40 font-medium">Regime de Caixa</span>
+          </h3>
+          <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+            {Object.entries(dre.entradas).map(([categoria, valor]) => (
+              <div key={categoria} className="flex justify-between text-xs py-1.5 border-b border-white/5 hover:bg-white/2 px-2 rounded transition-colors">
+                <span className="text-white/70 font-medium">{categoria}</span>
+                <span className="text-white font-bold">{formatCurrency(valor)}</span>
+              </div>
+            ))}
+            {Object.keys(dre.entradas).length === 0 && (
+              <p className="text-xs text-white/20 py-4 text-center">Nenhuma receita registrada.</p>
+            )}
+          </div>
+          <div className="flex justify-between text-xs pt-3 mt-3 border-t-2 border-white/10 font-bold text-white px-2">
+            <span>TOTAL RECEITAS</span>
+            <span className="text-emerald-400">{formatCurrency(dre.totalEntradas)}</span>
+          </div>
+        </div>
+
+        {/* Saídas */}
+        <div className="rounded-xl border border-white/5 bg-[hsl(222,47%,9%)] p-5">
+          <h3 className="text-sm font-semibold text-rose-400 mb-4 flex items-center justify-between">
+            <span>Demonstrativo de Despesas</span>
+            <span className="text-xs text-white/40 font-medium">Regime de Caixa</span>
+          </h3>
+          <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+            {Object.entries(dre.saidas).map(([categoria, valor]) => (
+              <div key={categoria} className="flex justify-between text-xs py-1.5 border-b border-white/5 hover:bg-white/2 px-2 rounded transition-colors">
+                <span className="text-white/70 font-medium">{categoria}</span>
+                <span className="text-white font-bold">{formatCurrency(valor)}</span>
+              </div>
+            ))}
+            {Object.keys(dre.saidas).length === 0 && (
+              <p className="text-xs text-white/20 py-4 text-center">Nenhuma despesa registrada.</p>
+            )}
+          </div>
+          <div className="flex justify-between text-xs pt-3 mt-3 border-t-2 border-white/10 font-bold text-white px-2">
+            <span>TOTAL DESPESAS</span>
+            <span className="text-rose-400">{formatCurrency(dre.totalSaidas)}</span>
+          </div>
+        </div>
+      </div>
+
       {/* Gráfico + Últimos lançamentos */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-        {/* Gráfico de evolução (ocupa 2/3) */}
-        <div className="xl:col-span-2 animate-fade-in" style={{ animationDelay: "320ms" }}>
+        {/* Gráfico de evolução */}
+        <div className="xl:col-span-2">
           <GraficoEvolucao data={grafico} />
         </div>
 
-        {/* Últimos lançamentos (ocupa 1/3) */}
-        <div
-          className="rounded-xl border border-white/5 bg-[hsl(222,47%,9%)] p-5 animate-fade-in"
-          style={{ animationDelay: "400ms" }}
-        >
+        {/* Últimos lançamentos */}
+        <div className="rounded-xl border border-white/5 bg-[hsl(222,47%,9%)] p-5">
           <h3 className="text-sm font-semibold text-white/70 mb-4">Últimos Lançamentos</h3>
           <div className="space-y-3">
             {ultimosLancamentos.map((l) => (
