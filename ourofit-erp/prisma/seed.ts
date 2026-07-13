@@ -1,10 +1,8 @@
 import { prisma } from "../src/lib/prisma";
 import { TipoLancamento, StatusPagamento } from "@prisma/client";
-import * as fs from "fs";
-import * as path from "path";
 
 async function main() {
-  console.log("🌱 Iniciando importação dos dados reais das planilhas...");
+  console.log("🌱 Iniciando geração de dados mockados realistas para o Sandbox...");
 
   // ─── LIMPAR BANCO ─────────────────────────────────────────────
   await prisma.lancamento.deleteMany();
@@ -43,112 +41,271 @@ async function main() {
   ];
 
   await prisma.categoria.createMany({ data: [...categoriasEntrada, ...categoriasSaida] });
-  console.log("✅ Categorias criadas no banco.");
+  console.log("✅ Categorias padronizadas criadas.");
 
-  // Buscar IDs das categorias criadas
   const categorias = await prisma.categoria.findMany();
   const catMap: Record<string, string> = {};
   for (const c of categorias) {
     catMap[c.nome] = c.id;
   }
 
-  // ─── FUNÇÃO DE MAPEAMENTO ──────────────────────────────────────
-  function mapCategory(rawCat: string, tipo: 'ENTRADA' | 'SAIDA'): string {
-    const norm = rawCat.toUpperCase().trim();
-    if (tipo === 'ENTRADA') {
-      if (norm.includes('MENSALIDADE') || norm.includes('PLANO') || norm.includes('MATRICULA')) return "Mensalidades";
-      if (norm.includes('DIARIA')) return "Diárias";
-      if (norm.includes('AVALIAÇ') || norm.includes('REAVALIAÇ') || norm.includes('FICHA DE TREINO')) return "Avaliações Físicas";
-      if (norm.includes('PRODUTO')) return "Venda de Produtos";
-      if (norm.includes('GYMPASS')) return "Gympass (Repasse)";
-      if (norm.includes('TOTALPASS')) return "Totalpass (Repasse)";
-      if (norm.includes('STONE')) return "Stone (Recebimentos)";
-      if (norm.includes('NEXTFIT')) return "Nextfit (Repasse)";
-      return "Outras Receitas";
-    } else {
-      if (norm.includes('SALÁRIO') || norm.includes('SALARIOS') || norm.includes('FOLHA DE PAGAMENTO') || norm.includes('BOLO FUNCIONARIO') || norm.includes('BENEFÍCIO') || norm.includes('BENEFICIOS') || norm.includes('CESTA BASICA') || norm.includes('ACERTO')) return "Salários e Encargos";
-      if (norm.includes('ALUGUEL')) return "Aluguel";
-      if (norm.includes('CEMIG') || norm.includes('CONSUMO')) return "Energia Elétrica";
-      if (norm.includes('INTERNET') || norm.includes('TELEFONE')) return "Internet e Telefone";
-      if (norm.includes('MANUTENÇ') || norm.includes('MÁQUINAS') || norm.includes('MAQUINAS') || norm.includes('EQUIPAMENTO')) return "Manutenção de Equipamentos";
-      if (norm.includes('CONTABILIDADE')) return "Contabilidade";
-      if (norm.includes('TRIBUTO') || norm.includes('IMPOSTO')) return "Impostos e Tributos";
-      if (norm.includes('MARKETING') || norm.includes('PROPAGANDA') || norm.includes('PUBLICIDADE')) return "Marketing e Publicidade";
-      if (norm.includes('SISTEMA') || norm.includes('SOFTWARE')) return "Sistemas e Software";
-      if (norm.includes('TARIFA') || norm.includes('STONE')) return "Tarifa de Cartão (Stone)";
-      if (norm.includes('FISIOTERAPEUTA') || norm.includes('AVALIADOR')) return "Fisioterapeuta / Avaliador";
-      if (norm.includes('ESTOQUE') || norm.includes('CMV')) return "Estoque (CMV)";
-      if (norm.includes('ESTORNO')) return "Estorno de Mensalidade";
-      if (norm.includes('RETIRADA')) return "Retirada dos Sócios";
-      return "Outros Custos";
-    }
-  }
-
-  // ─── CARREGAR DADOS DO JSON ───────────────────────────────────
-  const jsonPath = "C:\\Users\\Leonardo\\Desktop\\Leo\\Desenvolvimento de softwere pessoal\\Isabela\\all_parsed_data.json";
-  const rawJson = fs.readFileSync(jsonPath, "utf-8");
-  const allData = JSON.parse(rawJson);
-
-  const entries2025 = allData.entries_2025;
-  const entries2026 = allData.entries_2026;
-
-  const rawEntries = [
-    ...entries2026.entradas,
-    ...entries2026.saidas,
+  // ─── GERAR DADOS PARA CADA MÊS (JANEIRO A JULHO 2026) ───────────
+  // Para tornar os dados consistentes e ligeiramente variados
+  const meses = [
+    { ano: 2026, mes: 1, nome: "Janeiro" },
+    { ano: 2026, mes: 2, nome: "Fevereiro" },
+    { ano: 2026, mes: 3, nome: "Março" },
+    { ano: 2026, mes: 4, nome: "Abril" },
+    { ano: 2026, mes: 5, nome: "Maio" },
+    { ano: 2026, mes: 6, nome: "Junho" },
+    { ano: 2026, mes: 7, nome: "Julho" }
   ];
 
-  console.log(`📦 Encontrados ${rawEntries.length} lançamentos brutos no JSON.`);
+  let totalLancamentos = 0;
 
-  // Preparar os lançamentos para inserção
-  const records = rawEntries.map((e) => {
-    const tipo = e.tipo as TipoLancamento;
-    const mappedCatName = mapCategory(e.categoria, tipo);
-    const categoriaId = catMap[mappedCatName];
-    if (!categoriaId) {
-      throw new Error(`Categoria mapeada não encontrada: ${mappedCatName}`);
-    }
+  for (const m of meses) {
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const d = (dia: number) => new Date(`${m.ano}-${pad(m.mes)}-${pad(dia)}T12:00:00-03:00`);
+    
+    // Fator de variação sazonal nos valores
+    const varFactor = 1 + (Math.sin(m.mes) * 0.08); // variação de +-8%
 
-    let status: StatusPagamento = StatusPagamento.PAGO;
-    if (e.status === "EM_ABERTO" || e.status === "EM ABERTO") {
-      status = StatusPagamento.EM_ABERTO;
-    } else if (e.status === "AGENDADO") {
-      status = StatusPagamento.AGENDADO;
-    }
+    const lancamentos = [
+      // 🟢 RECEITAS
+      {
+        tipo: "ENTRADA" as TipoLancamento,
+        categoriaId: catMap["Mensalidades"],
+        descricao: `Mensalidades Nextfit — Recorrência ${m.nome}`,
+        valor: Math.round(24500 * varFactor * 100) / 100,
+        data: d(5),
+        status: StatusPagamento.PAGO,
+        conta: "Nextfit Pay"
+      },
+      {
+        tipo: "ENTRADA" as TipoLancamento,
+        categoriaId: catMap["Stone (Recebimentos)"],
+        descricao: `Recebimentos Stone — Maquininha ${m.nome}`,
+        valor: Math.round(21200 * (2 - varFactor) * 100) / 100,
+        data: d(12),
+        status: StatusPagamento.PAGO,
+        conta: "Stone PJ"
+      },
+      {
+        tipo: "ENTRADA" as TipoLancamento,
+        categoriaId: catMap["Gympass (Repasse)"],
+        descricao: `Repasse Mensal Gympass ${m.nome}`,
+        valor: Math.round(4800 * varFactor * 100) / 100,
+        data: d(20),
+        status: StatusPagamento.PAGO,
+        conta: "Stone PJ"
+      },
+      {
+        tipo: "ENTRADA" as TipoLancamento,
+        categoriaId: catMap["Totalpass (Repasse)"],
+        descricao: `Repasse Mensal Totalpass ${m.nome}`,
+        valor: Math.round(1800 * varFactor * 100) / 100,
+        data: d(22),
+        status: StatusPagamento.PAGO,
+        conta: "Stone PJ"
+      },
+      {
+        tipo: "ENTRADA" as TipoLancamento,
+        categoriaId: catMap["Diárias"],
+        descricao: `Diárias avulsas acumuladas — ${m.nome}`,
+        valor: Math.round(1150 * varFactor * 100) / 100,
+        data: d(15),
+        status: StatusPagamento.PAGO,
+        conta: "Caixa Físico"
+      },
+      {
+        tipo: "ENTRADA" as TipoLancamento,
+        categoriaId: catMap["Avaliações Físicas"],
+        descricao: `Avaliações físicas do mês — ${m.nome}`,
+        valor: Math.round(950 * varFactor * 100) / 100,
+        data: d(18),
+        status: StatusPagamento.PAGO,
+        conta: "Caixa Físico"
+      },
+      {
+        tipo: "ENTRADA" as TipoLancamento,
+        categoriaId: catMap["Venda de Produtos"],
+        descricao: `Venda de suplementos e acessórios — ${m.nome}`,
+        valor: Math.round(1650 * varFactor * 100) / 100,
+        data: d(25),
+        status: StatusPagamento.PAGO,
+        conta: "Caixa Físico"
+      },
 
-    return {
-      tipo,
-      categoriaId,
-      descricao: e.descricao || null,
-      valor: e.valor,
-      data: new Date(e.data + "T12:00:00-03:00"),
-      status,
-      conta: tipo === "ENTRADA" ? e.categoria : "Bradesco PJ",
-      fornecedor: e.descricao || null
-    };
-  });
+      // 🔴 DESPESAS
+      {
+        tipo: "SAIDA" as TipoLancamento,
+        categoriaId: catMap["Salários e Encargos"],
+        descricao: `Folha de Pagamento Professores e Recepção — ${m.nome}`,
+        valor: Math.round(13500 * 100) / 100,
+        data: d(5),
+        status: StatusPagamento.PAGO,
+        conta: "Bradesco PJ",
+        fornecedor: "Colaboradores Ourofit"
+      },
+      {
+        tipo: "SAIDA" as TipoLancamento,
+        categoriaId: catMap["Aluguel"],
+        descricao: `Aluguel mensal do imóvel — Ref ${m.nome}`,
+        valor: 3222.65,
+        data: d(10),
+        status: StatusPagamento.PAGO,
+        conta: "Bradesco PJ",
+        fornecedor: "Jair (Locador)"
+      },
+      {
+        tipo: "SAIDA" as TipoLancamento,
+        categoriaId: catMap["Energia Elétrica"],
+        descricao: `Conta de Luz Cemig — Competência ${m.nome}`,
+        valor: Math.round(1450 * varFactor * 100) / 100,
+        data: d(12),
+        status: StatusPagamento.PAGO,
+        conta: "Bradesco PJ",
+        fornecedor: "Cemig Distribuidora"
+      },
+      {
+        tipo: "SAIDA" as TipoLancamento,
+        categoriaId: catMap["Internet e Telefone"],
+        descricao: `Mensalidade Link de Internet Dedicada + Telefone`,
+        valor: 315.72,
+        data: d(15),
+        status: StatusPagamento.PAGO,
+        conta: "Bradesco PJ",
+        fornecedor: "Claro Telecom"
+      },
+      {
+        tipo: "SAIDA" as TipoLancamento,
+        categoriaId: catMap["Contabilidade"],
+        descricao: `Honorários contábeis assessoria mensal`,
+        valor: 350.00,
+        data: d(5),
+        status: StatusPagamento.PAGO,
+        conta: "Bradesco PJ",
+        fornecedor: "Exata Contabilidade"
+      },
+      {
+        tipo: "SAIDA" as TipoLancamento,
+        categoriaId: catMap["Impostos e Tributos"],
+        descricao: `Guia de DAS / Simples Nacional — ${m.nome}`,
+        valor: Math.round(2100 * varFactor * 100) / 100,
+        data: d(20),
+        status: StatusPagamento.PAGO,
+        conta: "Bradesco PJ",
+        fornecedor: "Receita Federal"
+      },
+      {
+        tipo: "SAIDA" as TipoLancamento,
+        categoriaId: catMap["Marketing e Publicidade"],
+        descricao: `Campanhas Meta Ads (Facebook/Instagram) — ${m.nome}`,
+        valor: 1200.00,
+        data: d(8),
+        status: StatusPagamento.PAGO,
+        conta: "Bradesco PJ",
+        fornecedor: "Meta Platforms"
+      },
+      {
+        tipo: "SAIDA" as TipoLancamento,
+        categoriaId: catMap["Sistemas e Software"],
+        descricao: `Mensalidade Nextfit — Software de Gestão e Catraca`,
+        valor: 379.00,
+        data: d(10),
+        status: StatusPagamento.PAGO,
+        conta: "Bradesco PJ",
+        fornecedor: "Nextfit Software"
+      },
+      {
+        tipo: "SAIDA" as TipoLancamento,
+        categoriaId: catMap["Tarifa de Cartão (Stone)"],
+        descricao: `Taxas de intermediação de crédito/débito Stone`,
+        valor: Math.round(920 * varFactor * 100) / 100,
+        data: d(30),
+        status: StatusPagamento.PAGO,
+        conta: "Stone PJ",
+        fornecedor: "Stone Pagamentos"
+      },
+      {
+        tipo: "SAIDA" as TipoLancamento,
+        categoriaId: catMap["Fisioterapeuta / Avaliador"],
+        descricao: `Repasse Avaliações Físicas prestador serviço`,
+        valor: Math.round(350 * varFactor * 100) / 100,
+        data: d(28),
+        status: StatusPagamento.PAGO,
+        conta: "Caixa Físico",
+        fornecedor: "Dr. Rodrigo (Fisioterapeuta)"
+      },
+      {
+        tipo: "SAIDA" as TipoLancamento,
+        categoriaId: catMap["Estoque (CMV)"],
+        descricao: `Reposição de estoque de águas e isotônicos`,
+        valor: Math.round(620 * varFactor * 100) / 100,
+        data: d(17),
+        status: StatusPagamento.PAGO,
+        conta: "Caixa Físico",
+        fornecedor: "Distribuidora Bebidas"
+      },
+      {
+        tipo: "SAIDA" as TipoLancamento,
+        categoriaId: catMap["Manutenção de Equipamentos"],
+        descricao: `Troca de cabos e estofados aparelhos musculação`,
+        valor: Math.round(750 * (2 - varFactor) * 100) / 100,
+        data: d(22),
+        status: StatusPagamento.PAGO,
+        conta: "Caixa Físico",
+        fornecedor: "Jonathan Equipamentos"
+      },
+      {
+        tipo: "SAIDA" as TipoLancamento,
+        categoriaId: catMap["Estorno de Mensalidade"],
+        descricao: `Estorno cancelamento matrícula proporcional`,
+        valor: 180.00,
+        data: d(27),
+        status: StatusPagamento.PAGO,
+        conta: "Stone PJ"
+      },
+      {
+        tipo: "SAIDA" as TipoLancamento,
+        categoriaId: catMap["Outros Custos"],
+        descricao: `Material de limpeza e escritório recepção`,
+        valor: Math.round(480 * varFactor * 100) / 100,
+        data: d(14),
+        status: StatusPagamento.PAGO,
+        conta: "Caixa Físico"
+      },
+      
+      // 💸 RETIRADA DOS SÓCIOS (Retirada estruturada que deixa lucro no caixa)
+      {
+        tipo: "SAIDA" as TipoLancamento,
+        categoriaId: catMap["Retirada dos Sócios"],
+        descricao: `Distribuição de Lucros Mensal Sócios — ${m.nome}`,
+        valor: Math.round(15000 * 100) / 100,
+        data: d(28),
+        status: StatusPagamento.PAGO,
+        conta: "Bradesco PJ",
+        fornecedor: "Sócios Ourofit"
+      }
+    ];
 
-  // Criar lançamentos em lotes
-  const batchSize = 100;
-  let inserted = 0;
-  for (let i = 0; i < records.length; i += batchSize) {
-    const batch = records.slice(i, i + batchSize);
     await prisma.lancamento.createMany({
-      data: batch.map(r => ({
-        tipo: r.tipo,
-        categoriaId: r.categoriaId,
-        descricao: r.descricao,
-        valor: r.valor,
-        data: r.data,
-        status: r.status,
-        conta: r.conta,
-        fornecedor: r.fornecedor
+      data: lancamentos.map(l => ({
+        tipo: l.tipo,
+        categoriaId: l.categoriaId,
+        descricao: l.descricao,
+        valor: l.valor,
+        data: l.data,
+        status: l.status,
+        conta: l.conta,
+        fornecedor: l.fornecedor || null
       }))
     });
-    inserted += batch.length;
-    console.log(`⏳ Progresso: ${inserted}/${records.length} inseridos...`);
+    totalLancamentos += lancamentos.length;
   }
 
-  console.log(`✅ Sucesso! ${inserted} lançamentos inseridos.`);
+  console.log(`✅ Sucesso! Gerados ${totalLancamentos} lançamentos mockados limpos (Jan-Jul 2026).`);
+  console.log("🎉 Seed Sandbox concluído com sucesso!");
 }
 
 main()

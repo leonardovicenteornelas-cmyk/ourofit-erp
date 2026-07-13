@@ -16,6 +16,7 @@ interface ResumoResponse {
 }
 
 const MESES = [
+  { value: "2026-07", label: "Julho / 2026" },
   { value: "2026-06", label: "Junho / 2026" },
   { value: "2026-05", label: "Maio / 2026" },
   { value: "2026-04", label: "Abril / 2026" },
@@ -25,7 +26,7 @@ const MESES = [
 ];
 
 export default function RelatoriosPage() {
-  const [mesRef, setMesRef] = useState("2026-06");
+  const [mesRef, setMesRef] = useState("2026-07");
   const [data, setData] = useState<DREData | null>(null);
   const [loading, setLoading] = useState(true);
   const [abaAtiva, setAbaAtiva] = useState<"resultado" | "fluxo">("resultado");
