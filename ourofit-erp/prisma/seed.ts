@@ -93,8 +93,6 @@ async function main() {
   const entries2026 = allData.entries_2026;
 
   const rawEntries = [
-    ...entries2025.entradas,
-    ...entries2025.saidas,
     ...entries2026.entradas,
     ...entries2026.saidas,
   ];

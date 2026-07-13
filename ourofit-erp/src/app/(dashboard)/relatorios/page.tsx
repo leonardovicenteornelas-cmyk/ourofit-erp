@@ -19,15 +19,9 @@ const MESES = [
   { value: "2026-06", label: "Junho / 2026" },
   { value: "2026-05", label: "Maio / 2026" },
   { value: "2026-04", label: "Abril / 2026" },
+  { value: "2026-03", label: "Março / 2026" },
   { value: "2026-02", label: "Fevereiro / 2026" },
   { value: "2026-01", label: "Janeiro / 2026" },
-  { value: "2025-10", label: "Outubro / 2025" },
-  { value: "2025-09", label: "Setembro / 2025" },
-  { value: "2025-08", label: "Agosto / 2025" },
-  { value: "2025-07", label: "Julho / 2025" },
-  { value: "2025-06", label: "Junho / 2025" },
-  { value: "2025-05", label: "Maio / 2025" },
-  { value: "2025-04", label: "Abril / 2025" },
 ];
 
 export default function RelatoriosPage() {
