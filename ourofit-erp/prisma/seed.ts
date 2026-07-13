@@ -2,7 +2,7 @@ import { prisma } from "../src/lib/prisma";
 import { TipoLancamento, StatusPagamento } from "@prisma/client";
 
 async function main() {
-  console.log("🌱 Iniciando geração de dados mockados realistas para o Sandbox...");
+  console.log("🌱 Iniciando geração de simulação ultra-realista para o Sandbox...");
 
   // ─── LIMPAR BANCO ─────────────────────────────────────────────
   await prisma.lancamento.deleteMany();
@@ -41,7 +41,7 @@ async function main() {
   ];
 
   await prisma.categoria.createMany({ data: [...categoriasEntrada, ...categoriasSaida] });
-  console.log("✅ Categorias padronizadas criadas.");
+  console.log("✅ Categorias padrão criadas.");
 
   const categorias = await prisma.categoria.findMany();
   const catMap: Record<string, string> = {};
@@ -49,34 +49,92 @@ async function main() {
     catMap[c.nome] = c.id;
   }
 
-  // ─── GERAR DADOS PARA CADA MÊS (JANEIRO A JULHO 2026) ───────────
-  // Para tornar os dados consistentes e ligeiramente variados
+  // Helper para gerar número aleatório com base e percentual de variância
+  function rand(base: number, variancePercent: number): number {
+    const factor = 1 + (Math.random() * 2 - 1) * (variancePercent / 100);
+    return Math.round(base * factor * 100) / 100;
+  }
+
+  // ─── CRONOGRAMA DE EVENTOS E SAZONALIDADES MENSAIS (2026) ───────────
   const meses = [
-    { ano: 2026, mes: 1, nome: "Janeiro" },
-    { ano: 2026, mes: 2, nome: "Fevereiro" },
-    { ano: 2026, mes: 3, nome: "Março" },
-    { ano: 2026, mes: 4, nome: "Abril" },
-    { ano: 2026, mes: 5, nome: "Maio" },
-    { ano: 2026, mes: 6, nome: "Junho" },
-    { ano: 2026, mes: 7, nome: "Julho" }
+    {
+      numero: 1,
+      nome: "Janeiro",
+      receitasMult: 1.15, // Boom de ano novo
+      despesasMult: 1.0,
+      evento: "Janeiro Fitness: Promoção especial de matrícula anual causou pico no faturamento.",
+      customManutencao: 450,
+      customRetirada: 18000, // Retirada de sócios maior devido ao excelente caixa
+    },
+    {
+      numero: 2,
+      nome: "Fevereiro",
+      receitasMult: 1.05, // Estável com carnaval
+      despesasMult: 0.95,
+      evento: "Fevereiro de Carnaval: Menor venda de suplementos, mas repasses de cartões mantiveram-se altos.",
+      customManutencao: 320,
+      customRetirada: 14000,
+    },
+    {
+      numero: 3,
+      nome: "Março",
+      receitasMult: 1.0,
+      despesasMult: 1.12, // Despesa extra de manutenção
+      evento: "Março de Manutenção: Troca completa dos cabos de aço e lona de 3 esteiras ergométricas.",
+      customManutencao: 4200, // Manutenção pesada
+      customRetirada: 10000, // Redução na retirada para cobrir a manutenção
+    },
+    {
+      numero: 4,
+      nome: "Abril",
+      receitasMult: 0.98,
+      despesasMult: 1.0,
+      evento: "Abril de Rotina: Fluxo de caixa muito equilibrado e sem surpresas operacionais.",
+      customManutencao: 650,
+      customRetirada: 12000,
+    },
+    {
+      numero: 5,
+      nome: "Maio",
+      receitasMult: 0.92, // Inverno chegando, faturamento cai ligeiramente
+      despesasMult: 1.05, // Conta de luz maior devido ao frio/chuveiros
+      evento: "Maio Frio: Queda sazonal nas diárias e aumento de 20% no consumo de energia elétrica.",
+      customManutencao: 850,
+      customRetirada: 9000,
+    },
+    {
+      numero: 6,
+      nome: "Junho",
+      receitasMult: 0.95,
+      despesasMult: 1.15, // Bonificação ou custos extras
+      evento: "Junho de Readequação: Contratação de professor de Spinning temporário para cobrir férias.",
+      customManutencao: 500,
+      customRetirada: 11000,
+    },
+    {
+      numero: 7,
+      nome: "Julho",
+      receitasMult: 1.1, // Promoção de inverno ou férias escolares
+      despesasMult: 1.08,
+      evento: "Julho de Férias: Lançamento do Plano Férias gerou aumento de 20% no repasse da Stone.",
+      customManutencao: 750,
+      customRetirada: 15000,
+    }
   ];
 
   let totalLancamentos = 0;
 
   for (const m of meses) {
     const pad = (n: number) => String(n).padStart(2, "0");
-    const d = (dia: number) => new Date(`${m.ano}-${pad(m.mes)}-${pad(dia)}T12:00:00-03:00`);
-    
-    // Fator de variação sazonal nos valores
-    const varFactor = 1 + (Math.sin(m.mes) * 0.08); // variação de +-8%
+    const d = (dia: number) => new Date(`2026-${pad(m.numero)}-${pad(dia)}T12:00:00-03:00`);
 
     const lancamentos = [
-      // 🟢 RECEITAS
+      // 🟢 RECEITAS (Variando dinamicamente)
       {
         tipo: "ENTRADA" as TipoLancamento,
         categoriaId: catMap["Mensalidades"],
-        descricao: `Mensalidades Nextfit — Recorrência ${m.nome}`,
-        valor: Math.round(24500 * varFactor * 100) / 100,
+        descricao: `Mensalidades Nextfit — ${m.nome}`,
+        valor: rand(24000 * m.receitasMult, 3), // base 24k + sazonalidade + 3% variação
         data: d(5),
         status: StatusPagamento.PAGO,
         conta: "Nextfit Pay"
@@ -84,8 +142,8 @@ async function main() {
       {
         tipo: "ENTRADA" as TipoLancamento,
         categoriaId: catMap["Stone (Recebimentos)"],
-        descricao: `Recebimentos Stone — Maquininha ${m.nome}`,
-        valor: Math.round(21200 * (2 - varFactor) * 100) / 100,
+        descricao: `Faturamento Cartões Stone — ${m.nome}`,
+        valor: rand(20000 * m.receitasMult, 4),
         data: d(12),
         status: StatusPagamento.PAGO,
         conta: "Stone PJ"
@@ -93,8 +151,8 @@ async function main() {
       {
         tipo: "ENTRADA" as TipoLancamento,
         categoriaId: catMap["Gympass (Repasse)"],
-        descricao: `Repasse Mensal Gympass ${m.nome}`,
-        valor: Math.round(4800 * varFactor * 100) / 100,
+        descricao: `Repasse Gympass Corporativo — ${m.nome}`,
+        valor: rand(4500 * m.receitasMult, 5),
         data: d(20),
         status: StatusPagamento.PAGO,
         conta: "Stone PJ"
@@ -102,8 +160,8 @@ async function main() {
       {
         tipo: "ENTRADA" as TipoLancamento,
         categoriaId: catMap["Totalpass (Repasse)"],
-        descricao: `Repasse Mensal Totalpass ${m.nome}`,
-        valor: Math.round(1800 * varFactor * 100) / 100,
+        descricao: `Repasse Totalpass — ${m.nome}`,
+        valor: rand(1700 * m.receitasMult, 5),
         data: d(22),
         status: StatusPagamento.PAGO,
         conta: "Stone PJ"
@@ -112,7 +170,7 @@ async function main() {
         tipo: "ENTRADA" as TipoLancamento,
         categoriaId: catMap["Diárias"],
         descricao: `Diárias avulsas acumuladas — ${m.nome}`,
-        valor: Math.round(1150 * varFactor * 100) / 100,
+        valor: rand(1100 * m.receitasMult, 8),
         data: d(15),
         status: StatusPagamento.PAGO,
         conta: "Caixa Físico"
@@ -120,8 +178,8 @@ async function main() {
       {
         tipo: "ENTRADA" as TipoLancamento,
         categoriaId: catMap["Avaliações Físicas"],
-        descricao: `Avaliações físicas do mês — ${m.nome}`,
-        valor: Math.round(950 * varFactor * 100) / 100,
+        descricao: `Avaliações físicas alunos — ${m.nome}`,
+        valor: rand(900 * m.receitasMult, 10),
         data: d(18),
         status: StatusPagamento.PAGO,
         conta: "Caixa Físico"
@@ -129,19 +187,19 @@ async function main() {
       {
         tipo: "ENTRADA" as TipoLancamento,
         categoriaId: catMap["Venda de Produtos"],
-        descricao: `Venda de suplementos e acessórios — ${m.nome}`,
-        valor: Math.round(1650 * varFactor * 100) / 100,
+        descricao: `Venda produtos e suplementos — ${m.nome}`,
+        valor: rand(1500 * m.receitasMult, 12),
         data: d(25),
         status: StatusPagamento.PAGO,
         conta: "Caixa Físico"
       },
 
-      // 🔴 DESPESAS
+      // 🔴 DESPESAS OPERACIONAIS
       {
         tipo: "SAIDA" as TipoLancamento,
         categoriaId: catMap["Salários e Encargos"],
-        descricao: `Folha de Pagamento Professores e Recepção — ${m.nome}`,
-        valor: Math.round(13500 * 100) / 100,
+        descricao: `Folha de Pagamento Professores/Recepção — ${m.nome}`,
+        valor: m.numero === 6 ? rand(15500, 1) : rand(13500, 1), // Junho com contratação extra
         data: d(5),
         status: StatusPagamento.PAGO,
         conta: "Bradesco PJ",
@@ -150,8 +208,8 @@ async function main() {
       {
         tipo: "SAIDA" as TipoLancamento,
         categoriaId: catMap["Aluguel"],
-        descricao: `Aluguel mensal do imóvel — Ref ${m.nome}`,
-        valor: 3222.65,
+        descricao: `Aluguel imóvel academia — Ref ${m.nome}`,
+        valor: 3222.65, // Fixo exato
         data: d(10),
         status: StatusPagamento.PAGO,
         conta: "Bradesco PJ",
@@ -160,8 +218,8 @@ async function main() {
       {
         tipo: "SAIDA" as TipoLancamento,
         categoriaId: catMap["Energia Elétrica"],
-        descricao: `Conta de Luz Cemig — Competência ${m.nome}`,
-        valor: Math.round(1450 * varFactor * 100) / 100,
+        descricao: `Fatura Cemig Distribuição — ${m.nome}`,
+        valor: m.numero === 5 ? rand(1750, 4) : rand(1450 * m.despesasMult, 5), // Maio com pico de energia
         data: d(12),
         status: StatusPagamento.PAGO,
         conta: "Bradesco PJ",
@@ -170,8 +228,8 @@ async function main() {
       {
         tipo: "SAIDA" as TipoLancamento,
         categoriaId: catMap["Internet e Telefone"],
-        descricao: `Mensalidade Link de Internet Dedicada + Telefone`,
-        valor: 315.72,
+        descricao: `Link Internet Dedicada Claro Empresas`,
+        valor: 315.72, // Fixo exato
         data: d(15),
         status: StatusPagamento.PAGO,
         conta: "Bradesco PJ",
@@ -180,8 +238,8 @@ async function main() {
       {
         tipo: "SAIDA" as TipoLancamento,
         categoriaId: catMap["Contabilidade"],
-        descricao: `Honorários contábeis assessoria mensal`,
-        valor: 350.00,
+        descricao: `Assessoria mensal honorários contabilidade`,
+        valor: 350.00, // Fixo exato
         data: d(5),
         status: StatusPagamento.PAGO,
         conta: "Bradesco PJ",
@@ -190,8 +248,8 @@ async function main() {
       {
         tipo: "SAIDA" as TipoLancamento,
         categoriaId: catMap["Impostos e Tributos"],
-        descricao: `Guia de DAS / Simples Nacional — ${m.nome}`,
-        valor: Math.round(2100 * varFactor * 100) / 100,
+        descricao: `Simples Nacional (DAS) faturamento — ${m.nome}`,
+        valor: rand(2100 * m.receitasMult, 5),
         data: d(20),
         status: StatusPagamento.PAGO,
         conta: "Bradesco PJ",
@@ -200,8 +258,8 @@ async function main() {
       {
         tipo: "SAIDA" as TipoLancamento,
         categoriaId: catMap["Marketing e Publicidade"],
-        descricao: `Campanhas Meta Ads (Facebook/Instagram) — ${m.nome}`,
-        valor: 1200.00,
+        descricao: `Tráfego Pago Instagram/Facebook — ${m.nome}`,
+        valor: m.numero === 7 ? 2200.00 : rand(1200, 3), // Julho com maior investimento de marketing
         data: d(8),
         status: StatusPagamento.PAGO,
         conta: "Bradesco PJ",
@@ -210,8 +268,8 @@ async function main() {
       {
         tipo: "SAIDA" as TipoLancamento,
         categoriaId: catMap["Sistemas e Software"],
-        descricao: `Mensalidade Nextfit — Software de Gestão e Catraca`,
-        valor: 379.00,
+        descricao: `Licença Nextfit Software de Gestão`,
+        valor: 379.00, // Fixo exato
         data: d(10),
         status: StatusPagamento.PAGO,
         conta: "Bradesco PJ",
@@ -220,8 +278,8 @@ async function main() {
       {
         tipo: "SAIDA" as TipoLancamento,
         categoriaId: catMap["Tarifa de Cartão (Stone)"],
-        descricao: `Taxas de intermediação de crédito/débito Stone`,
-        valor: Math.round(920 * varFactor * 100) / 100,
+        descricao: `Tarifas intermediação crédito/débito — ${m.nome}`,
+        valor: rand(920 * m.receitasMult, 4),
         data: d(30),
         status: StatusPagamento.PAGO,
         conta: "Stone PJ",
@@ -230,8 +288,8 @@ async function main() {
       {
         tipo: "SAIDA" as TipoLancamento,
         categoriaId: catMap["Fisioterapeuta / Avaliador"],
-        descricao: `Repasse Avaliações Físicas prestador serviço`,
-        valor: Math.round(350 * varFactor * 100) / 100,
+        descricao: `Comissão avaliações físicas — ${m.nome}`,
+        valor: rand(350 * m.receitasMult, 8),
         data: d(28),
         status: StatusPagamento.PAGO,
         conta: "Caixa Físico",
@@ -240,8 +298,8 @@ async function main() {
       {
         tipo: "SAIDA" as TipoLancamento,
         categoriaId: catMap["Estoque (CMV)"],
-        descricao: `Reposição de estoque de águas e isotônicos`,
-        valor: Math.round(620 * varFactor * 100) / 100,
+        descricao: `Compra estoque recepção bebidas/suplementos`,
+        valor: rand(620 * m.receitasMult, 10),
         data: d(17),
         status: StatusPagamento.PAGO,
         conta: "Caixa Físico",
@@ -250,8 +308,8 @@ async function main() {
       {
         tipo: "SAIDA" as TipoLancamento,
         categoriaId: catMap["Manutenção de Equipamentos"],
-        descricao: `Troca de cabos e estofados aparelhos musculação`,
-        valor: Math.round(750 * (2 - varFactor) * 100) / 100,
+        descricao: `Serviços manutenção e reparo aparelhos — ${m.nome}`,
+        valor: m.customManutencao, // Evento customizado por mês (Março alto)
         data: d(22),
         status: StatusPagamento.PAGO,
         conta: "Caixa Físico",
@@ -260,8 +318,8 @@ async function main() {
       {
         tipo: "SAIDA" as TipoLancamento,
         categoriaId: catMap["Estorno de Mensalidade"],
-        descricao: `Estorno cancelamento matrícula proporcional`,
-        valor: 180.00,
+        descricao: `Estorno proporcional devolução matrícula`,
+        valor: rand(200, 20),
         data: d(27),
         status: StatusPagamento.PAGO,
         conta: "Stone PJ"
@@ -269,19 +327,19 @@ async function main() {
       {
         tipo: "SAIDA" as TipoLancamento,
         categoriaId: catMap["Outros Custos"],
-        descricao: `Material de limpeza e escritório recepção`,
-        valor: Math.round(480 * varFactor * 100) / 100,
+        descricao: `Despesas miúdas caixa de recepção — ${m.nome}`,
+        valor: rand(500, 15),
         data: d(14),
         status: StatusPagamento.PAGO,
         conta: "Caixa Físico"
       },
-      
-      // 💸 RETIRADA DOS SÓCIOS (Retirada estruturada que deixa lucro no caixa)
+
+      // 💸 RETIRADA DOS SÓCIOS (Varia de acordo com o desempenho do caixa no mês)
       {
         tipo: "SAIDA" as TipoLancamento,
         categoriaId: catMap["Retirada dos Sócios"],
-        descricao: `Distribuição de Lucros Mensal Sócios — ${m.nome}`,
-        valor: Math.round(15000 * 100) / 100,
+        descricao: `Distribuição de Lucros Sócios — ${m.nome}`,
+        valor: m.customRetirada,
         data: d(28),
         status: StatusPagamento.PAGO,
         conta: "Bradesco PJ",
@@ -304,8 +362,8 @@ async function main() {
     totalLancamentos += lancamentos.length;
   }
 
-  console.log(`✅ Sucesso! Gerados ${totalLancamentos} lançamentos mockados limpos (Jan-Jul 2026).`);
-  console.log("🎉 Seed Sandbox concluído com sucesso!");
+  console.log(`✅ Sucesso! Gerada simulação ultra-realista com ${totalLancamentos} lançamentos (Jan-Jul 2026).`);
+  console.log("🎉 Seed Sandbox atualizado com sucesso!");
 }
 
 main()
